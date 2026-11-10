@@ -219,9 +219,7 @@ def test_comment_inside_a_jsx_attribute_expression_is_reported() -> None:
 
 def test_comparison_inside_a_jsx_attribute_does_not_end_the_tag() -> None:
     exact = "<Foo title={cond > 1 // plain"
-    assert check_source(exact, relative="view.tsx") == [
-        "view.tsx:1: cannot parse; comment check skipped"
-    ]
+    assert check_source(exact, relative="view.tsx") == ["view.tsx:1: plain comment"]
     source = exact + "\n} />;\n// after\n"
     assert check_source(source, relative="view.tsx") == [
         "view.tsx:1: plain comment",
@@ -264,11 +262,9 @@ def test_regex_after_a_control_statement_is_not_a_comment() -> None:
         assert check_source(statement + "\n", relative="app.ts") == []
 
 
-def test_switch_without_a_block_fails_closed() -> None:
+def test_switch_without_a_block_is_not_a_comment() -> None:
     source = "switch (ok) /foo\\/\\//;\n"
-    assert check_source(source, relative="app.ts") == [
-        "app.ts:1: cannot parse; comment check skipped"
-    ]
+    assert check_source(source, relative="app.ts") == []
 
 
 def test_unclosed_block_comment_fails_closed() -> None:
@@ -281,5 +277,31 @@ def test_unclosed_block_comment_fails_closed() -> None:
 def test_html_comment_in_tsx_fails_closed() -> None:
     source = "const node = <div><!-- x --></div>;\nconst value = 1;\n// plain\n"
     assert check_source(source, relative="src/html.tsx") == [
-        "src/html.tsx:1: cannot parse; comment check skipped"
+        "src/html.tsx:1: plain comment",
+        "src/html.tsx:3: cannot parse; comment check skipped",
     ]
+
+
+def test_type_reexport_keeps_a_later_comment() -> None:
+    source = "export type * as HttpProxy from 'http-proxy-3';\n// plain\n"
+    assert check_source(source, relative="src/reexport.ts") == [
+        "src/reexport.ts:2: plain comment"
+    ]
+
+
+def test_script_html_comment_is_reported() -> None:
+    source = '<!-- console.log("hidden")\nconsole.log("shown")\n'
+    assert check_source(source, relative="src/legacy.js") == [
+        "src/legacy.js:1: plain comment"
+    ]
+    closer = '--> console.log("hidden")\n'
+    assert check_source(closer, relative="src/legacy.js") == [
+        "src/legacy.js:1: plain comment"
+    ]
+    allowed = "<!-- eslint-disable no-console\nconst value = 1;\n"
+    assert check_source(allowed, relative="src/legacy.js") == []
+
+
+def test_decrement_is_not_an_html_comment() -> None:
+    assert check_source("const value = a-->0;\n", relative="src/legacy.js") == []
+    assert check_source("const pattern = /<!--/;\n", relative="src/legacy.js") == []
