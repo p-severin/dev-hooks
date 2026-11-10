@@ -32,11 +32,41 @@ import sys  # noqa: F401
 value = 1  # type: ignore[attr-defined]
 other = 2  # pyright: ignore[reportUnusedVariable]
 third = 3  # pragma: no cover
-fourth = 4  # eslint-disable-next-line no-alert
-fifth = 5  # @ts-expect-error sample
 sixth = 6  # noqa: TC002 # runtime annotation
 """
     assert check_source(source, relative="mod.py") == []
+
+
+def test_formatter_and_linter_directives_are_allowed() -> None:
+    source = """\
+# fmt: off
+items = [1, 2]  # fmt: skip
+# fmt: on
+# ruff: noqa
+# ruff: noqa: E501
+# isort: skip
+# isort: off
+# pylint: disable=missing-docstring
+"""
+    assert check_source(source, relative="mod.py") == []
+    assert check_source(source, relative="types.pyi") == []
+
+
+def test_javascript_directives_are_plain_comments() -> None:
+    source = """\
+value = 1  # eslint-disable-next-line no-alert
+other = 2  # @ts-expect-error sample
+"""
+    assert check_source(source, relative="mod.py") == [
+        "mod.py:1: plain comment",
+        "mod.py:2: plain comment",
+    ]
+
+
+def test_pyi_body_is_scanned() -> None:
+    assert check_source("value: int  # plain\n", relative="types.pyi") == [
+        "types.pyi:1: plain comment"
+    ]
 
 
 def test_directive_lookalikes_are_plain_comments() -> None:
