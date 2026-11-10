@@ -39,6 +39,10 @@ def comment_body(text: str) -> str:
         return text[2:].strip()
     if text.startswith("/*"):
         return text[2:].removesuffix("*/").strip()
+    if text.startswith("<!--"):
+        return text[4:].strip()
+    if text.startswith("-->"):
+        return text[3:].strip()
     if text.startswith("#"):
         return text[1:].strip()
     return text.strip()
@@ -84,14 +88,21 @@ def script_findings(source: str, relative: str) -> list[str]:
         shift = 1
     else:
         shift = 0
-    error_line, comments = scan_comments(source, jsx=jsx)
-    if error_line is not None:
-        return [f"{relative}:{error_line + shift}: cannot parse; comment check skipped"]
-    return [
-        f"{relative}:{line + shift}: plain comment"
+    hidden, comments = scan_comments(source, jsx=jsx)
+    findings = [
+        (
+            line + shift,
+            f"{relative}:{line + shift}: cannot parse; comment check skipped",
+        )
+        for line in hidden
+    ]
+    findings.extend(
+        (line + shift, f"{relative}:{line + shift}: plain comment")
         for line, text in comments
         if not directive_allowed(text)
-    ]
+    )
+    findings.sort()
+    return [message for _line, message in findings]
 
 
 def _drop_first_line(source: str) -> str:
