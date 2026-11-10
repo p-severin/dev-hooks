@@ -144,6 +144,29 @@ _PNG = (
 )
 
 
+_BMP = bytes.fromhex(
+    "424d3a00000000000000ff00000028000000010000000100000001001800"
+    "00000000040000000000000000000000000000000000000000000000"
+)
+
+
+def test_bmp_fixture_is_skipped(tmp_path: Path) -> None:
+    from dev_hooks.pii import check_path
+
+    assert len(_BMP) == 58
+    assert _BMP.count(b"\x00") == 48
+    pixel = tmp_path / "tests" / "fixtures" / "pixel.bmp"
+    pixel.parent.mkdir(parents=True)
+    pixel.write_bytes(_BMP)
+    assert check_path(pixel, tmp_path, globs=("tests/**",), excludes=(), allow=()) == []
+    email = "jan.kowalski@gmail.com"
+    text = tmp_path / "tests" / "fixtures" / "label.txt"
+    text.write_bytes(b"BM hello\n" + email.encode() + b"\n")
+    assert check_path(text, tmp_path, globs=("tests/**",), excludes=(), allow=()) == [
+        f"tests/fixtures/label.txt:2: email {email}"
+    ]
+
+
 def test_binary_fixture_is_skipped(tmp_path: Path) -> None:
     from dev_hooks.pii import check_path
 

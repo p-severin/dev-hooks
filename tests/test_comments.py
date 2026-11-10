@@ -257,7 +257,27 @@ def test_regex_after_a_control_statement_is_not_a_comment() -> None:
         "if (ok) /foo\\/\\//;",
         "while (ok) /foo\\/\\//;",
         "for (;;) /foo\\/\\//;",
-        "switch (ok) /foo\\/\\//;",
         "with (ok) /foo\\/\\//;",
     ):
         assert check_source(statement + "\n", relative="app.ts") == []
+
+
+def test_switch_without_a_block_fails_closed() -> None:
+    source = "switch (ok) /foo\\/\\//;\n"
+    assert check_source(source, relative="app.ts") == [
+        "app.ts:1: cannot parse; comment check skipped"
+    ]
+
+
+def test_unclosed_block_comment_fails_closed() -> None:
+    source = "const value = 1; /*\nplain\nstill\n"
+    assert check_source(source, relative="src/unclosed.ts") == [
+        "src/unclosed.ts:1: cannot parse; comment check skipped"
+    ]
+
+
+def test_html_comment_in_tsx_fails_closed() -> None:
+    source = "const node = <div><!-- x --></div>;\nconst value = 1;\n// plain\n"
+    assert check_source(source, relative="src/html.tsx") == [
+        "src/html.tsx:1: cannot parse; comment check skipped"
+    ]
