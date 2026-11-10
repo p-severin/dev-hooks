@@ -219,7 +219,9 @@ def test_comment_inside_a_jsx_attribute_expression_is_reported() -> None:
 
 def test_comparison_inside_a_jsx_attribute_does_not_end_the_tag() -> None:
     exact = "<Foo title={cond > 1 // plain"
-    assert check_source(exact, relative="view.tsx") == ["view.tsx:1: plain comment"]
+    assert check_source(exact, relative="view.tsx") == [
+        "view.tsx:1: cannot parse; comment check skipped"
+    ]
     source = exact + "\n} />;\n// after\n"
     assert check_source(source, relative="view.tsx") == [
         "view.tsx:1: plain comment",

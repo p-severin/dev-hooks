@@ -84,9 +84,12 @@ def script_findings(source: str, relative: str) -> list[str]:
         shift = 1
     else:
         shift = 0
+    error_line, comments = scan_comments(source, jsx=jsx)
+    if error_line is not None:
+        return [f"{relative}:{error_line + shift}: cannot parse; comment check skipped"]
     return [
         f"{relative}:{line + shift}: plain comment"
-        for line, text in scan_comments(source, jsx=jsx)
+        for line, text in comments
         if not directive_allowed(text)
     ]
 

@@ -275,8 +275,16 @@ def _overlaps(start: int, end: int, spans: Sequence[Span]) -> bool:
     )
 
 
-def decode_fixture(data: bytes) -> str | None:
+def _binary(data: bytes) -> bool:
     if data.startswith(_BINARY_PREFIXES):
+        return True
+    return (
+        len(data) >= 14 and data.startswith(b"BM") and data[6:10] == b"\x00\x00\x00\x00"
+    )
+
+
+def decode_fixture(data: bytes) -> str | None:
+    if _binary(data):
         return None
     if data.startswith(_UTF16_BOM):
         return data.decode("utf-16")
