@@ -114,7 +114,7 @@ The error tells you how to split the file. For Markdown it tells you to link sub
 
 The hook rejects comments in Python. Docstrings stay, because they are strings.
 
-A comment stays when its text starts with `noqa`, `type: ignore`, `pyright:`, `pragma:`, `eslint-disable`, or `@ts-`. A shebang on line 1 stays. A coding cookie stays only when all three are true. The comment is the whole line. The line is line 1 or line 2. The line matches PEP 263, which is `coding` followed by `:` or `=` and an encoding name. An inline note such as `x = 1  # coding: utf-8 note` fails.
+A comment stays when its text starts with `noqa`, `type: ignore`, `pyright:`, `pragma:`, `fmt:`, `ruff:`, `isort:`, or `pylint:`. A shebang on line 1 stays. A coding cookie stays only when all three are true. The comment is the whole line. The line is line 1 or line 2. The line matches PEP 263, which is `coding` followed by `:` or `=` and an encoding name. An inline note such as `x = 1  # coding: utf-8 note` fails.
 
 Checked suffixes are `.py` and `.pyi`. JavaScript and TypeScript are not checked.
 
@@ -144,7 +144,7 @@ Street addresses are not detected. A street line matches too much ordinary text.
 
 The hook rejects `run.env`, `.env`, any `.env.*` file, and `.claude/settings.local.json`. It also rejects a path whose directory is named `.env`, `run.env`, or `secrets`. Matching ignores case. `.env.example` and `.env.sample` stay allowed.
 
-`.env.example` and `.env.sample` are allowed. `--allow` adds an allow glob. `--deny` adds a deny glob. An allow match wins over a deny match.
+`--allow` adds an allow glob. `--deny` adds a deny glob. An allow match wins over a deny match.
 
 ## What you still keep in the consumer repo
 

@@ -24,7 +24,7 @@ DEFAULT_EXCLUDES: tuple[str, ...] = (
 
 _PYTHON = frozenset({".py", ".pyi"})
 _DIRECTIVE = re.compile(
-    r"^(?:noqa(?:\s|:|$)|type:\s*ignore\b|pyright:|pragma:|eslint-disable|@ts-)"
+    r"^(?:noqa(?:\s|:|$)|type:\s*ignore\b|pyright:|pragma:|fmt:|ruff:|isort:|pylint:)"
 )
 _PEP263 = re.compile(r"coding[:=][ \t]*[-_.a-zA-Z0-9]+")
 _WHOLE_HASH_LINE = re.compile(r"^[ \t\f]*#")
