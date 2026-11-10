@@ -155,3 +155,18 @@ Keep any CI that publishes a lower baseline, reads a pull request label, or clas
 Keep a same-commit guard if you still want to stop a baseline count from rising in the commit that grows the file. This hook treats the baseline it reads as the ceiling. It does not compare that file with `HEAD`.
 
 Keep exclude globs that are specific to one repo, and keep local hooks that are not these four.
+
+## NOTES
+
+This branch keeps the JavaScript and TypeScript comment scan from `48cc754`. It is not the PR #1 branch. Two holes from the review of that commit are still open.
+
+An unclosed `/*` in expression position passes. `foo(/* plain` and `const value = 1 /* plain` are not `cannot parse`. Tree-sitter lexes the first as a regex whose pattern starts with `*`, and the second as division plus an `ERROR` whose text is `*`. `const value = 1; /*` is still `cannot parse`. `foo(/* plain */)` is still a plain comment.
+
+A `//` or `/*` later on a line of `jsx_text` under an `ERROR` is dropped. This file passes, because the `html_comment` is treated as a directive and the recovery hides the later comment:
+
+```tsx
+const node = <div><!-- eslint-disable --></div>;
+const value = 1; // plain
+```
+
+The same shape with `<!-- @ts-expect-error -->` and `const value = 1; /* plain */` also passes. A line that itself starts with `//` is still `cannot parse`.
