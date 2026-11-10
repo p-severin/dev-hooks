@@ -19,18 +19,21 @@ if TYPE_CHECKING:
 DEFAULT_GLOBS: tuple[str, ...] = ("tests/**", "**/tests/**", "**/fixtures/**")
 _WEIGHTS = (1, 3, 7, 9, 1, 3, 7, 9, 1, 3)
 _EMAIL = re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")
-_E164 = re.compile(r"(?<!\w)\+(?:\d[ \t.\-()]?){7,14}\d(?!\d)")
-_INTL00 = re.compile(r"(?<!\d)00(?:[ \t.\-]?\d){8,15}(?!\d)")
+_PHONE_BODY = r"(?:[ \t.\-()]*\d){8,15}"
+_E164 = re.compile(rf"(?<!\w)\+{_PHONE_BODY}(?!\d)")
+_INTL00 = re.compile(rf"(?<!\d)00{_PHONE_BODY}(?!\d)")
 _LABELED_PHONE = re.compile(
     r"(?i)(?<![A-Za-z0-9_])(?:phone|telefon|mobile|komórka|komorka|tel)"
-    r"(?![A-Za-z0-9_]).{0,40}?(\+?\d(?:[ \t.\-()]?\d){7,14})"
+    r"(?![A-Za-z0-9_]).{0,40}?"
+    r"(\+?(?:\(?\d)(?:[ \t.\-()]*\d){7,14})"
 )
 _PESEL = re.compile(r"(?<!\d)\d{11}(?!\d)")
+_CAPITAL = "A-ZĄĆĘŁŃÓŚŹŻ"
 _PAIR = re.compile(
     r"(?<![A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż])"
-    r"([A-ZŁŚŻŹĆŃÓ][a-ząćęłńóśźż]{2,})"
+    rf"([{_CAPITAL}][a-ząćęłńóśźż]{{2,}})"
     r"[ \t]+"
-    r"([A-ZŁŚŻŹĆŃÓ][a-ząćęłńóśźż]{2,})"
+    rf"([{_CAPITAL}][a-ząćęłńóśźż]{{2,}})"
     r"(?![A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż])"
 )
 _LABEL = re.compile(
@@ -40,7 +43,7 @@ _LABEL = re.compile(
     r"imię|imie|nazwisko|name)"
     r"(?![A-Za-z0-9_])"
     r"""\s*["']?\s*[:=]\s*["']?"""
-    r"([A-ZŁŚŻŹĆŃÓ][A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż.\-]*(?:[ \t]+[A-ZŁŚŻŹĆŃÓ][A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż.\-]*)?)"
+    rf"([{_CAPITAL}][A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż.\-]*(?:[ \t]+[{_CAPITAL}][A-Za-zĄĆĘŁŃÓŚŹŻąćęłńóśźż.\-]*)?)"
 )
 _PII_OK = re.compile(r"(?<![\w-])pii-ok(?![\w-])")
 _SKIP_DOMAINS = frozenset(
@@ -53,6 +56,12 @@ _SKIP_DOMAINS = frozenset(
         "localhost",
         "test",
     }
+)
+_EXAMPLE_DOMAINS = (
+    "example.com",
+    "example.org",
+    "example.net",
+    "example.edu",
 )
 _SKIP_SUFFIXES = (".example", ".invalid", ".test", ".localhost")
 
@@ -157,6 +166,8 @@ def _email_ignored(email: str) -> bool:
     domain = email.rsplit("@", 1)[-1].lower().rstrip(".")
     if domain in _SKIP_DOMAINS:
         return True
+    if any(domain == name or domain.endswith("." + name) for name in _EXAMPLE_DOMAINS):
+        return True
     return any(domain.endswith(suffix) for suffix in _SKIP_SUFFIXES)
 
 
@@ -250,6 +261,19 @@ def _overlaps(start: int, end: int, spans: Sequence[Span]) -> bool:
     )
 
 
+def decode_fixture(data: bytes) -> str:
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16")
+    try:
+        return data.decode("utf-8")
+    except UnicodeError:
+        pass
+    if b"\0" in data:
+        message = "file cannot be decoded"
+        raise ValueError(message)
+    return data.decode("cp1250")
+
+
 def load_allowlist(path: Path) -> list[re.Pattern[str]]:
     patterns: list[re.Pattern[str]] = []
     for line_no, raw in enumerate(
@@ -281,12 +305,10 @@ def check_path(
     if not candidate.is_file():
         return [f"{relative}: not a file"]
     data = candidate.read_bytes()
-    if b"\0" in data:
-        return []
     try:
-        source = data.decode("utf-8")
-    except UnicodeError:
-        return []
+        source = decode_fixture(data)
+    except ValueError:
+        return [f"{relative}: file cannot be decoded"]
     return check_text(
         source,
         relative=relative,

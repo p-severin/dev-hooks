@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -157,8 +158,6 @@ def check_file(
     if not candidate.is_file():
         return [f"{relative}: not a file"]
     data = candidate.read_bytes()
-    if b"\0" in data:
-        return []
     tokens = token_count(len(data))
     recorded = baseline.get(relative)
     allowed = limit if recorded is None else recorded
@@ -188,6 +187,7 @@ def check_paths(
     baseline = load_baseline(baseline_path)
     patterns = compile_globs(DEFAULT_EXCLUDES + tuple(excludes))
     baseline_relative = relative_of(baseline_path, root)
+    renames = staged_renames(root)
     findings: list[str] = []
     seen: set[str] = set()
     for path in paths:
@@ -198,8 +198,68 @@ def check_paths(
         if relative == baseline_relative or matches(relative, patterns):
             continue
         candidate = path if path.is_absolute() else root / path
-        findings.extend(check_file(candidate, relative, baseline, limit))
+        recorded = _recorded(relative, baseline, renames)
+        view = {} if recorded is None else {relative: recorded}
+        findings.extend(check_file(candidate, relative, view, limit))
     return findings
+
+
+def _recorded(
+    relative: str,
+    baseline: Mapping[str, int],
+    renames: Mapping[str, str],
+) -> int | None:
+    if relative in baseline:
+        return baseline[relative]
+    old = renames.get(relative)
+    if old is None:
+        return None
+    return baseline.get(old)
+
+
+def staged_renames(root: Path) -> dict[str, str]:
+    if not _git_root_is(root):
+        return {}
+    result = subprocess.run(
+        ["git", "diff", "--cached", "-M", "--name-status", "-z"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return {}
+    return _rename_map(result.stdout)
+
+
+def _git_root_is(root: Path) -> bool:
+    probe = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if probe.returncode != 0:
+        return False
+    top = Path(probe.stdout.decode().strip()).resolve()
+    return top == root.resolve()
+
+
+def _rename_map(payload: bytes) -> dict[str, str]:
+    parts = payload.split(b"\0")
+    mapping: dict[str, str] = {}
+    index = 0
+    while index < len(parts):
+        status = parts[index].decode()
+        if status == "":
+            break
+        if status[0] in {"R", "C"} and index + 2 < len(parts):
+            old = parts[index + 1].decode()
+            new = parts[index + 2].decode()
+            mapping[new] = old
+            index += 3
+            continue
+        index += 2
+    return mapping
 
 
 def _parser() -> argparse.ArgumentParser:

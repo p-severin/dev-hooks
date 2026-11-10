@@ -17,6 +17,21 @@ def test_secret_files_are_blocked() -> None:
         assert check_relative(relative) is not None
 
 
+def test_case_and_secret_directory_segments() -> None:
+    blocked = (
+        ".ENV",
+        "app/.ENV.local",
+        "SRC/SECRETS/a.txt",
+        "pkg/.env/keys",
+        "deploy/Run.env/file",
+        ".env/.env.example",
+    )
+    for relative in blocked:
+        assert check_relative(relative) is not None, relative
+    assert check_relative(".ENV.EXAMPLE") is None
+    assert check_relative("App/.Env.Sample") is None
+
+
 def test_examples_and_ordinary_files_are_allowed() -> None:
     allowed = (
         ".env.example",

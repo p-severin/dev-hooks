@@ -9,7 +9,7 @@
   description: Reject code comments in Python, JavaScript, and TypeScript
   entry: comment-ban
   language: python
-  types_or: [python, pyi, javascript, jsx, ts, tsx]
+  types: [file]
 - id: pii-fixtures
   name: pii in fixtures
   description: Reject likely personal data in tests and fixtures

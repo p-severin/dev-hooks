@@ -140,7 +140,7 @@ Street addresses are not detected. A street line matches too much ordinary text.
 
 ## forbid-env-files
 
-The hook rejects `run.env`, `.env`, any `.env.*` file, any file under a directory named `secrets`, and `.claude/settings.local.json`.
+The hook rejects `run.env`, `.env`, any `.env.*` file, and `.claude/settings.local.json`. It also rejects a path whose directory is named `.env`, `run.env`, or `secrets`. Matching ignores case. `.env.example` and `.env.sample` stay allowed.
 
 `.env.example` and `.env.sample` are allowed. `--allow` adds an allow glob. `--deny` adds a deny glob. An allow match wins over a deny match.
 

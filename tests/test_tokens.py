@@ -178,3 +178,53 @@ def test_cli_limit(tmp_path: Path) -> None:
 
 def test_empty_path_list_exits_zero() -> None:
     assert main([]) == 0
+
+
+def test_nul_bytes_count_toward_the_limit(tmp_path: Path) -> None:
+    _baseline(tmp_path, "{}\n")
+    target = tmp_path / "src" / "wide.txt"
+    target.parent.mkdir()
+    target.write_bytes(b"\x00" * (5001 * BYTES))
+    messages = _check(tmp_path, "src/wide.txt")
+    assert "src/wide.txt has 5001 tokens (limit 5000)." in messages[0]
+
+
+def test_image_with_nul_bytes_stays_excluded(tmp_path: Path) -> None:
+    _baseline(tmp_path, "{}\n")
+    _write(tmp_path, "assets/logo.png", 5001)
+    assert _check(tmp_path, "assets/logo.png") == []
+
+
+def test_staged_rename_keeps_the_old_baseline(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    old = source / "old.py"
+    body = b"line of text\n" * 20
+    old.write_bytes(body)
+    _baseline(tmp_path, '{"src/old.py": 65}\n')
+    _git(tmp_path, "init")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "base")
+    _git(tmp_path, "mv", "src/old.py", "src/new.py")
+    new = source / "new.py"
+    new.write_bytes(body + b"extra\n")
+    _git(tmp_path, "add", "-A")
+    messages = _check(tmp_path, "src/new.py")
+    assert (
+        "src/new.py has 67 tokens, above its baseline of 65 (limit 5000)."
+        in messages[0]
+    )
+    new.write_bytes(body)
+    _git(tmp_path, "add", "-A")
+    assert _check(tmp_path, "src/new.py") == []
+
+
+def _git(repo: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(
+        ["git", "-c", "user.email=dev@example.com", "-c", "user.name=dev", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )

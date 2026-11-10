@@ -12,25 +12,28 @@ from dev_hooks.report import report
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-DEFAULT_ALLOW: tuple[str, ...] = (
-    "**/.env.example",
-    "**/.env.sample",
-    ".env.example",
-    ".env.sample",
-)
 _SAFE_ENV_NAMES = frozenset({".env.example", ".env.sample"})
 
 
+_SECRET_DIRS = frozenset({".env", "run.env", "secrets"})
+
+
+def _folded(relative: str) -> str:
+    return relative.replace("\\", "/").casefold()
+
+
 def classify(relative: str) -> str | None:
-    path = relative.replace("\\", "/")
-    name = path.rsplit("/", 1)[-1]
+    path = _folded(relative)
+    parts = path.split("/")
+    name = parts[-1]
+    if any(part in _SECRET_DIRS for part in parts[:-1]):
+        return "secret directory"
+    if name in _SAFE_ENV_NAMES:
+        return None
     if name == "run.env":
         return "run.env"
     if name == ".env" or _dotted_env(name):
         return "env file"
-    parts = path.split("/")
-    if "secrets" in parts[:-1]:
-        return "secrets directory"
     if path == ".claude/settings.local.json" or path.endswith(
         "/.claude/settings.local.json"
     ):
@@ -48,13 +51,22 @@ def check_relative(
     allow: Sequence[str] = (),
     deny: Sequence[str] = (),
 ) -> str | None:
-    allowed = compile_globs(DEFAULT_ALLOW + tuple(allow))
-    if matches(relative, allowed):
+    if _folded(relative).rsplit("/", 1)[-1] in _SAFE_ENV_NAMES and not _secret_dir(
+        relative
+    ):
+        return None
+    allowed = compile_globs(tuple(allow))
+    if allow and matches(relative, allowed):
         return None
     denied = compile_globs(deny)
     if matches(relative, denied):
         return "denied path"
     return classify(relative)
+
+
+def _secret_dir(relative: str) -> bool:
+    parts = _folded(relative).split("/")
+    return any(part in _SECRET_DIRS for part in parts[:-1])
 
 
 def finding(relative: str, reason: str) -> str:

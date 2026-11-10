@@ -146,6 +146,45 @@ def test_template_expression_comment_is_rejected() -> None:
     assert check_source(source, relative="app.js") == ["app.js:1: plain comment"]
 
 
+def test_regex_literal_and_jsx_text_are_not_comments() -> None:
+    source = "const re = /https?:\\/\\//;\nconst node = <div>a//b</div>;\n"
+    assert check_source(source, relative="view.tsx") == []
+
+
+def test_comment_after_braces_inside_a_template_is_reported() -> None:
+    source = "const text = `value ${ { a: 1 } // plain\n}`;\n"
+    assert check_source(source, relative="app.ts") == ["app.ts:1: plain comment"]
+
+
+def test_jsx_expression_comment_is_reported() -> None:
+    source = "const node = <div>{1 // plain\n}</div>;\n"
+    assert check_source(source, relative="view.tsx") == ["view.tsx:1: plain comment"]
+
+
+def test_escaped_newline_in_a_string_advances_the_line() -> None:
+    source = 'const value = "a\\\nb"; // plain\n'
+    assert check_source(source, relative="app.ts") == ["app.ts:2: plain comment"]
+
+
+def test_mts_and_cts_files_are_scanned() -> None:
+    source = "const value = 1; // plain\n"
+    assert check_source(source, relative="app.mts") == ["app.mts:1: plain comment"]
+    assert check_source(source, relative="app.cts") == ["app.cts:1: plain comment"]
+
+
+def test_comment_ban_hook_receives_every_file() -> None:
+    text = (
+        Path(__file__)
+        .resolve()
+        .parents[1]
+        .joinpath(".pre-commit-hooks.yaml")
+        .read_text(encoding="utf-8")
+    )
+    block = text.split("id: comment-ban", maxsplit=1)[1].split("id:", maxsplit=1)[0]
+    assert "types: [file]" in block
+    assert "types_or:" not in block
+
+
 def test_cli_rejects_a_plain_comment(tmp_path: Path) -> None:
     target = tmp_path / "mod.py"
     target.write_text("# plain\n", encoding="utf-8")
