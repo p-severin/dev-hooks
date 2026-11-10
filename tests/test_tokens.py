@@ -219,6 +219,52 @@ def test_staged_rename_keeps_the_old_baseline(tmp_path: Path) -> None:
     assert _check(tmp_path, "src/new.py") == []
 
 
+def test_forty_percent_rewrite_keeps_the_old_baseline(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    old_lines = [f"alpha line {i:04d} keeps its own words\n" for i in range(100)]
+    old_body = "".join(old_lines).encode()
+    (source / "old.py").write_bytes(old_body)
+    new_lines = [
+        f"bravo line {i:04d} replaced with other words\n" if i < 60 else old_lines[i]
+        for i in range(100)
+    ]
+    new_lines.append("extra growth line one\n")
+    new_body = "".join(new_lines).encode()
+    recorded = token_count(len(old_body))
+    grown = token_count(len(new_body))
+    assert grown > recorded
+    _baseline(tmp_path, f'{{"src/old.py": {recorded}}}\n')
+    _git(tmp_path, "init")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "base")
+    _git(tmp_path, "mv", "src/old.py", "src/new.py")
+    (source / "new.py").write_bytes(new_body)
+    _git(tmp_path, "add", "-A")
+    messages = _check(tmp_path, "src/new.py")
+    assert (
+        f"src/new.py has {grown} tokens, above its baseline of {recorded} (limit 5000)."
+    ) in messages[0]
+
+
+def test_rewrite_git_does_not_call_a_rename_is_a_new_file(tmp_path: Path) -> None:
+    source = tmp_path / "src"
+    source.mkdir()
+    old_lines = [f"alpha line {i:04d} keeps its own words\n" for i in range(100)]
+    (source / "old.py").write_bytes("".join(old_lines).encode())
+    _baseline(tmp_path, '{"src/old.py": 10}\n')
+    _git(tmp_path, "init")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "base")
+    _git(tmp_path, "mv", "src/old.py", "src/new.py")
+    new_lines = [
+        f"totally different content number {i:04d} zzzzz\n" for i in range(120)
+    ]
+    (source / "new.py").write_bytes("".join(new_lines).encode())
+    _git(tmp_path, "add", "-A")
+    assert _check(tmp_path, "src/new.py") == []
+
+
 def _git(repo: Path, *args: str) -> None:
     import subprocess
 

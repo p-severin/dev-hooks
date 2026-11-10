@@ -137,6 +137,52 @@ def test_fixture_decodes_utf16_bom_and_cp1250(tmp_path: Path) -> None:
     ]
 
 
+_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def test_binary_fixture_is_skipped(tmp_path: Path) -> None:
+    from dev_hooks.pii import check_path
+
+    assert len(_PNG) == 67
+    assert _PNG.count(b"\x00") == 23
+    pixel = tmp_path / "tests" / "fixtures" / "pixel.png"
+    pixel.parent.mkdir(parents=True)
+    pixel.write_bytes(_PNG)
+    assert check_path(pixel, tmp_path, globs=("tests/**",), excludes=(), allow=()) == []
+    odd = tmp_path / "tests" / "fixtures" / "odd.bin"
+    odd.write_bytes(bytes((0x81, 0x83, 0x88, 0x90, 0x98)))
+    assert check_path(odd, tmp_path, globs=("tests/**",), excludes=(), allow=()) == []
+
+
+def test_utf16_without_a_bom_is_scanned(tmp_path: Path) -> None:
+    from dev_hooks.pii import check_path
+
+    email = "jan.kowalski@gmail.com"
+    for encoding in ("utf-16-le", "utf-16-be"):
+        path = tmp_path / "tests" / f"wide-{encoding}.txt"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((email + "\n").encode(encoding))
+        assert check_path(
+            path, tmp_path, globs=("tests/**",), excludes=(), allow=()
+        ) == [f"tests/wide-{encoding}.txt:1: email {email}"]
+
+
+def test_utf8_nul_beside_an_email_stays_utf8(tmp_path: Path) -> None:
+    from dev_hooks.pii import check_path
+
+    email = "jan.kowalski@gmail.com"
+    path = tmp_path / "tests" / "beside.txt"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(email.encode() + b"\x00x\n")
+    assert check_path(path, tmp_path, globs=("tests/**",), excludes=(), allow=()) == [
+        f"tests/beside.txt:1: email {email}"
+    ]
+
+
 def test_cli_fails_on_a_fixture_and_passes_outside_it(tmp_path: Path) -> None:
     email = _join("jan.kowalski", "@", "gmail.com")
     fixture = tmp_path / "tests" / "fixtures" / "person.json"

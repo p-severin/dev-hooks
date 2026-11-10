@@ -195,3 +195,69 @@ def test_cli_accepts_a_file_without_comments(tmp_path: Path) -> None:
     target = tmp_path / "mod.py"
     target.write_text("value = 1\n", encoding="utf-8")
     assert main([str(target)]) == 0
+
+
+def test_comment_inside_a_jsx_opening_tag_is_reported() -> None:
+    source = """\
+export function Button(label: string) {
+  return (
+    <button
+      className="row" // plain
+    >
+      {label}
+    </button>
+  );
+}
+"""
+    assert check_source(source, relative="view.tsx") == ["view.tsx:4: plain comment"]
+
+
+def test_comment_inside_a_jsx_attribute_expression_is_reported() -> None:
+    source = '<div title={/* plain */ "x"} />\n'
+    assert check_source(source, relative="view.tsx") == ["view.tsx:1: plain comment"]
+
+
+def test_comparison_inside_a_jsx_attribute_does_not_end_the_tag() -> None:
+    exact = "<Foo title={cond > 1 // plain"
+    assert check_source(exact, relative="view.tsx") == ["view.tsx:1: plain comment"]
+    source = exact + "\n} />;\n// after\n"
+    assert check_source(source, relative="view.tsx") == [
+        "view.tsx:1: plain comment",
+        "view.tsx:3: plain comment",
+    ]
+
+
+def test_fragment_text_is_not_a_comment_and_a_later_comment_is() -> None:
+    source = "export const node = <>a//b</>;\n// plain\n"
+    assert check_source(source, relative="view.tsx") == ["view.tsx:2: plain comment"]
+
+
+def test_typescript_type_arguments_do_not_hide_a_later_comment() -> None:
+    source = "export const id = <T>(value: T) => value;\n// plain\n"
+    assert check_source(source, relative="app.ts") == ["app.ts:2: plain comment"]
+
+
+def test_tsx_type_argument_with_a_comma_does_not_hide_a_later_comment() -> None:
+    source = "export const id = <T,>(value: T) => value;\n// plain\n"
+    assert check_source(source, relative="view.tsx") == ["view.tsx:2: plain comment"]
+
+
+def test_type_assertion_does_not_hide_a_later_comment() -> None:
+    source = "function f(value: string) {\n  return <string>value;\n}\n// plain\n"
+    assert check_source(source, relative="app.ts") == ["app.ts:4: plain comment"]
+
+
+def test_division_on_the_next_line_is_not_a_regex() -> None:
+    source = "const value = y\n/ 2 // plain\n"
+    assert check_source(source, relative="app.ts") == ["app.ts:2: plain comment"]
+
+
+def test_regex_after_a_control_statement_is_not_a_comment() -> None:
+    for statement in (
+        "if (ok) /foo\\/\\//;",
+        "while (ok) /foo\\/\\//;",
+        "for (;;) /foo\\/\\//;",
+        "switch (ok) /foo\\/\\//;",
+        "with (ok) /foo\\/\\//;",
+    ):
+        assert check_source(statement + "\n", relative="app.ts") == []
