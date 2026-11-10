@@ -112,13 +112,13 @@ The error tells you how to split the file. For Markdown it tells you to link sub
 
 ## comment-ban
 
-The hook rejects comments in Python and in JavaScript or TypeScript. Docstrings stay, because they are strings.
+The hook rejects comments in Python. Docstrings stay, because they are strings.
 
 A comment stays when its text starts with `noqa`, `type: ignore`, `pyright:`, `pragma:`, `eslint-disable`, or `@ts-`. A shebang on line 1 stays. A coding cookie stays only when all three are true. The comment is the whole line. The line is line 1 or line 2. The line matches PEP 263, which is `coding` followed by `:` or `=` and an encoding name. An inline note such as `x = 1  # coding: utf-8 note` fails.
 
-Checked suffixes are `.py`, `.pyi`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.mts`, and `.cts`.
+Checked suffixes are `.py` and `.pyi`. JavaScript and TypeScript are not checked.
 
-`--exclude` adds a glob. The hook already skips migration revisions, paths under `generated`, and `*.min.js`.
+`--exclude` adds a glob. The hook already skips migration revisions and paths under `generated`.
 
 ## pii-fixtures
 

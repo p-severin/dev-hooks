@@ -8,10 +8,7 @@ version = "0.1.0"
 description = "Shared pre-commit hooks for file size, comments, fixture data, and secret files."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "tree-sitter>=0.26.1",
-    "tree-sitter-typescript>=0.23.2",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = [

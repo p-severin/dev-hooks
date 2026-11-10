@@ -1,4 +1,4 @@
-"""Reject code comments in Python, JavaScript, and TypeScript."""
+"""Reject code comments in Python."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from dev_hooks.globs import compile_globs, matches, relative_of
-from dev_hooks.js_comments import scan_comments
 from dev_hooks.report import report
 
 if TYPE_CHECKING:
@@ -21,12 +20,9 @@ DEFAULT_EXCLUDES: tuple[str, ...] = (
     "**/migrations/versions/**",
     "**/alembic/versions/**",
     "**/generated/**",
-    "**/*.min.js",
-    "**/*.min.mjs",
 )
 
 _PYTHON = frozenset({".py", ".pyi"})
-_SCRIPT = frozenset({".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"})
 _DIRECTIVE = re.compile(
     r"^(?:noqa(?:\s|:|$)|type:\s*ignore\b|pyright:|pragma:|eslint-disable|@ts-)"
 )
@@ -35,14 +31,6 @@ _WHOLE_HASH_LINE = re.compile(r"^[ \t\f]*#")
 
 
 def comment_body(text: str) -> str:
-    if text.startswith("//"):
-        return text[2:].strip()
-    if text.startswith("/*"):
-        return text[2:].removesuffix("*/").strip()
-    if text.startswith("<!--"):
-        return text[4:].strip()
-    if text.startswith("-->"):
-        return text[3:].strip()
     if text.startswith("#"):
         return text[1:].strip()
     return text.strip()
@@ -81,37 +69,6 @@ def _python_allowed(text: str, line_no: int, lines: Sequence[str]) -> bool:
     return directive_allowed(text)
 
 
-def script_findings(source: str, relative: str) -> list[str]:
-    jsx = Path(relative).suffix.lower() in {".jsx", ".tsx"}
-    if source.startswith("#!"):
-        source = _drop_first_line(source)
-        shift = 1
-    else:
-        shift = 0
-    hidden, comments = scan_comments(source, jsx=jsx)
-    findings = [
-        (
-            line + shift,
-            f"{relative}:{line + shift}: cannot parse; comment check skipped",
-        )
-        for line in hidden
-    ]
-    findings.extend(
-        (line + shift, f"{relative}:{line + shift}: plain comment")
-        for line, text in comments
-        if not directive_allowed(text)
-    )
-    findings.sort()
-    return [message for _line, message in findings]
-
-
-def _drop_first_line(source: str) -> str:
-    end = source.find("\n")
-    if end == -1:
-        return ""
-    return source[end + 1 :]
-
-
 def check_source(
     source: str,
     *,
@@ -124,8 +81,6 @@ def check_source(
     suffix = Path(relative).suffix.lower()
     if suffix in _PYTHON:
         return python_findings(source, relative)
-    if suffix in _SCRIPT:
-        return script_findings(source, relative)
     return []
 
 
@@ -133,30 +88,27 @@ def check_path(path: Path, root: Path, excludes: Sequence[str]) -> list[str]:
     relative = relative_of(path, root)
     candidate = path if path.is_absolute() else root / path
     suffix = Path(relative).suffix.lower()
-    if suffix not in _PYTHON and suffix not in _SCRIPT:
+    if suffix not in _PYTHON:
         return []
     if not candidate.is_file():
         return [f"{relative}: not a file"]
     try:
-        source = _read(candidate, suffix)
+        source = _read(candidate)
     except (OSError, SyntaxError, UnicodeError) as exc:
         return [f"{relative}: {exc}"]
     return check_source(source, relative=relative, excludes=excludes)
 
 
-def _read(path: Path, suffix: str) -> str:
-    if suffix in _PYTHON:
-        with tokenize.open(path) as handle:
-            return handle.read()
-    return path.read_text(encoding="utf-8")
+def _read(path: Path) -> str:
+    with tokenize.open(path) as handle:
+        return handle.read()
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Reject code comments in Python, JavaScript, and TypeScript. "
-            "Docstrings stay. Tool directives, a shebang, and a whole-line "
-            "coding cookie stay."
+            "Reject code comments in Python. Docstrings stay. Tool directives, "
+            "a shebang, and a whole-line coding cookie stay."
         )
     )
     parser.add_argument(

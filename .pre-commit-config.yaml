@@ -49,7 +49,7 @@ repos:
         name: comment ban
         entry: comment-ban
         language: system
-        types: [file]
+        types_or: [python, pyi]
         pass_filenames: true
       - id: pii-fixtures
         name: pii in fixtures

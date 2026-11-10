@@ -6,10 +6,10 @@
   types: [file]
 - id: comment-ban
   name: comment ban
-  description: Reject code comments in Python, JavaScript, and TypeScript
+  description: Reject code comments in Python
   entry: comment-ban
   language: python
-  types: [file]
+  types_or: [python, pyi]
 - id: pii-fixtures
   name: pii in fixtures
   description: Reject likely personal data in tests and fixtures
