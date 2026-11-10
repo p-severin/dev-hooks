@@ -1,0 +1,24 @@
+- id: file-token-limit
+  name: file token limit
+  description: Reject a new file over the token limit and growth past a baseline count
+  entry: file-token-limit
+  language: python
+  types: [file]
+- id: comment-ban
+  name: comment ban
+  description: Reject code comments in Python, JavaScript, and TypeScript
+  entry: comment-ban
+  language: python
+  types_or: [python, pyi, javascript, jsx, ts, tsx]
+- id: pii-fixtures
+  name: pii in fixtures
+  description: Reject likely personal data in tests and fixtures
+  entry: pii-fixtures
+  language: python
+  types: [file]
+- id: forbid-env-files
+  name: forbid env files
+  description: Reject secret env files, secrets directories, and local settings
+  entry: forbid-env-files
+  language: python
+  types: [file]

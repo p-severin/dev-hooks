@@ -1,0 +1,66 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.13.7
+    hooks:
+      - id: uv-lock
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.9.0
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+        exclude: '(^|/)fixtures/.*\.(html|htm)$'
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-ast
+      - id: trailing-whitespace
+        exclude: '(^|/)fixtures/.*\.(html|htm)$'
+      - id: end-of-file-fixer
+        exclude: '(^|/)fixtures/.*\.(html|htm)$'
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: local
+    hooks:
+      - id: file-token-limit
+        name: file token limit
+        entry: file-token-limit
+        language: system
+        types: [file]
+        pass_filenames: true
+      - id: comment-ban
+        name: comment ban
+        entry: comment-ban
+        language: system
+        types_or: [python, pyi, javascript, jsx, ts, tsx]
+        pass_filenames: true
+      - id: pii-fixtures
+        name: pii in fixtures
+        entry: pii-fixtures
+        language: system
+        types: [file]
+        pass_filenames: true
+        args: [--exclude, tests/test_pii.py]
+      - id: forbid-env-files
+        name: forbid env files
+        entry: forbid-env-files
+        language: system
+        types: [file]
+        pass_filenames: true
