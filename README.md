@@ -92,6 +92,8 @@ The count is `ceil(bytes / 4)`. The default limit is 5000.
 
 A path missing from the baseline fails when the count is over the limit. A path present in the baseline fails when the count is over the recorded number. The file may shrink. It may not grow. A recorded count under 5000 is still that file's ceiling.
 
+The hook reads staged renames with `git diff --cached --find-renames=20%`. A rename keeps the old path's baseline. A rewrite that git does not report as a rename counts as a new file, and that path has no recorded baseline.
+
 Pre-commit passes staged paths on commit. `pre-commit run --all-files` passes every tracked file. The hook checks the paths it receives.
 
 `--limit` sets the ceiling for a path that is not in the baseline. The default is `5000`.

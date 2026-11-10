@@ -177,7 +177,7 @@ def test_utf8_nul_beside_an_email_stays_utf8(tmp_path: Path) -> None:
     email = "jan.kowalski@gmail.com"
     path = tmp_path / "tests" / "beside.txt"
     path.parent.mkdir(parents=True)
-    path.write_bytes(email.encode() + b"\x00x\n")
+    path.write_bytes(email.encode() + b"\x00\n")
     assert check_path(path, tmp_path, globs=("tests/**",), excludes=(), allow=()) == [
         f"tests/beside.txt:1: email {email}"
     ]

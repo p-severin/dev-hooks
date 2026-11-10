@@ -221,7 +221,7 @@ def staged_renames(root: Path) -> dict[str, str]:
     if not _git_root_is(root):
         return {}
     result = subprocess.run(
-        ["git", "diff", "--cached", "-M", "--name-status", "-z"],
+        ["git", "diff", "--cached", "--find-renames=20%", "--name-status", "-z"],
         cwd=root,
         capture_output=True,
         check=False,

@@ -64,6 +64,20 @@ _EXAMPLE_DOMAINS = (
     "example.edu",
 )
 _SKIP_SUFFIXES = (".example", ".invalid", ".test", ".localhost")
+_UTF16_BOM = (b"\xff\xfe", b"\xfe\xff")
+_BINARY_PREFIXES = (
+    b"\x89PNG\r\n\x1a\n",
+    b"\xff\xd8\xff",
+    b"GIF87a",
+    b"GIF89a",
+    b"%PDF-",
+    b"PK\x03\x04",
+    b"\x1f\x8b",
+    b"\x00asm",
+    b"wOFF",
+    b"wOF2",
+    b"RIFF",
+)
 
 Span = tuple[int, int, str]
 
@@ -261,17 +275,49 @@ def _overlaps(start: int, end: int, spans: Sequence[Span]) -> bool:
     )
 
 
-def decode_fixture(data: bytes) -> str:
-    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+def decode_fixture(data: bytes) -> str | None:
+    if data.startswith(_BINARY_PREFIXES):
+        return None
+    if data.startswith(_UTF16_BOM):
         return data.decode("utf-16")
+    wide = _utf16_text(data)
+    if wide is not None:
+        return wide
     try:
         return data.decode("utf-8")
     except UnicodeError:
-        pass
+        return _legacy_text(data)
+
+
+def _utf16_text(data: bytes) -> str | None:
+    if len(data) < 4 or len(data) % 2 or b"\0" not in data:
+        return None
+    chosen: str | None = None
+    chosen_zeros = 0
+    units = len(data) // 2
+    for encoding, high in (("utf-16-le", 1), ("utf-16-be", 0)):
+        zeros = sum(data[index * 2 + high] == 0 for index in range(units))
+        if zeros < 2 or zeros * 2 <= units or zeros <= chosen_zeros:
+            continue
+        try:
+            text = data.decode(encoding)
+        except UnicodeError:
+            continue
+        if "\0" in text:
+            continue
+        chosen = text
+        chosen_zeros = zeros
+    return chosen
+
+
+def _legacy_text(data: bytes) -> str | None:
     if b"\0" in data:
         message = "file cannot be decoded"
         raise ValueError(message)
-    return data.decode("cp1250")
+    try:
+        return data.decode("cp1250")
+    except UnicodeError:
+        return None
 
 
 def load_allowlist(path: Path) -> list[re.Pattern[str]]:
@@ -309,6 +355,8 @@ def check_path(
         source = decode_fixture(data)
     except ValueError:
         return [f"{relative}: file cannot be decoded"]
+    if source is None:
+        return []
     return check_text(
         source,
         relative=relative,

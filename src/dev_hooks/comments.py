@@ -78,6 +78,7 @@ def _python_allowed(text: str, line_no: int, lines: Sequence[str]) -> bool:
 
 
 def script_findings(source: str, relative: str) -> list[str]:
+    jsx = Path(relative).suffix.lower() in {".jsx", ".tsx"}
     if source.startswith("#!"):
         source = _drop_first_line(source)
         shift = 1
@@ -85,7 +86,7 @@ def script_findings(source: str, relative: str) -> list[str]:
         shift = 0
     return [
         f"{relative}:{line + shift}: plain comment"
-        for line, text in scan_comments(source)
+        for line, text in scan_comments(source, jsx=jsx)
         if not directive_allowed(text)
     ]
 
